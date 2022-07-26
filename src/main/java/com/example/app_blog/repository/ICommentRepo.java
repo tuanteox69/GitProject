@@ -10,5 +10,6 @@ import java.util.List;
 
 public interface ICommentRepo extends PagingAndSortingRepository<Comment,Long> {
     List<Comment> findByBlog(Blog blog);
+    int countCommentByBlog_Id(int id);
 
 }

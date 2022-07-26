@@ -24,5 +24,8 @@ public class CommentService {
     public void save(Comment comment) {
         iCommentRepo.save(comment);
     }
+    public int getsizecomment(int id){
+        return iCommentRepo.countCommentByBlog_Id(id);
+    }
 }
 

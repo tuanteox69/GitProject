@@ -3,9 +3,11 @@ package com.example.app_blog.controller;
 import com.example.app_blog.model.Blog;
 import com.example.app_blog.model.Category;
 import com.example.app_blog.model.Comment;
+import com.example.app_blog.model.Likes;
 import com.example.app_blog.service.BlogService;
 import com.example.app_blog.service.CategoryService;
 import com.example.app_blog.service.CommentService;
+import com.example.app_blog.service.LikeService;
 import com.example.app_blog.validate.ValidateBlog;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -16,13 +18,11 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 
+import javax.validation.Valid;
 import java.io.File;
 import java.io.IOException;
 
@@ -39,6 +39,8 @@ public class BlogController {
     CommentService commentService;
     @Autowired
     ValidateBlog validateBlog;
+    @Autowired
+    LikeService likeService;
     @ModelAttribute(name = "category")
     public List<Category> categories(){
         return categoryService.getAll();
@@ -56,8 +58,9 @@ public class BlogController {
         Optional<Blog> optional = blogService.findById(id);
         if (optional.isPresent()) {
             List<Comment> comments = commentService.getAll(optional.get());
+            modelAndView.addObject("likes",likeService.getsizelike(id));
             model.addAttribute("comment",comments);
-            modelAndView.addObject("blogs", optional.get());
+                modelAndView.addObject("blogs", optional.get());
         } else {
             modelAndView.addObject("erro");
         }
@@ -75,7 +78,7 @@ public class BlogController {
             comment.setContentComment(contentComment);
             commentService.save(comment);
             ModelAndView modelAndView = new ModelAndView("post");
-            modelAndView.addObject("comment",comment);
+            modelAndView.addObject("comment",commentService.getAll(optional.get()));
             modelAndView.addObject("blogs", optional.get());
             return modelAndView;
 
@@ -92,11 +95,11 @@ public class BlogController {
     }
 
     @PostMapping("/about")
-    public ModelAndView create(@ModelAttribute("blog") Blog blog, @RequestParam MultipartFile file, BindingResult bindingResult) {
-        validateBlog.validate(blog,bindingResult);
-        if (bindingResult.hasFieldErrors()) {
-            return new ModelAndView("about");
-        }
+    public ModelAndView create(@Valid @ModelAttribute("blog") Blog blog, @RequestParam MultipartFile file, BindingResult bindingResult) {
+//        validateBlog.validate(blog,bindingResult);
+//        if (bindingResult.hasFieldErrors()) {
+//            return new ModelAndView("redirect:/about");
+//        }
         String nameImg = file.getOriginalFilename();
         try {
             FileCopyUtils.copy(file.getBytes(), new File("C:\\Module_4\\App_Blog\\src\\main\\webapp\\WEB-INF\\views\\img\\" + nameImg));
@@ -126,7 +129,8 @@ public class BlogController {
 
     @PostMapping ("/edit")
     public ModelAndView edit(@ModelAttribute("blog") Blog blog,
-                             @RequestParam MultipartFile file){
+                             @RequestParam MultipartFile file,@RequestParam int id){
+        Optional<Blog> optional = blogService.findById(id);
         String nameImg = file.getOriginalFilename();
         try {
             FileCopyUtils.copy(file.getBytes(), new File("C:\\Module_4\\App_Blog\\src\\main\\webapp\\WEB-INF\\views\\img\\" + nameImg));
@@ -136,6 +140,8 @@ public class BlogController {
         blog.setImg("/img/" + nameImg);
         blogService.save(blog);
         ModelAndView modelAndView = new ModelAndView("post");
+        modelAndView.addObject("comment",commentService.getAll(optional.get()));
+        modelAndView.addObject("category", categoryService.getAll());
         modelAndView.addObject("blogs", blog);
         return modelAndView;
     }
@@ -148,14 +154,16 @@ public class BlogController {
             blogs = blogService.getAll((PageRequest.of(page,5, Sort.by(Sort.Direction.DESC,"date"))));
         }
         ModelAndView modelAndView = new ModelAndView("index");
+        modelAndView.addObject("likeservice",likeService);
+        modelAndView.addObject("commentService",commentService);
         modelAndView.addObject("blogs",blogs);
         return modelAndView;
     }
-//    @GetMapping("/live")
-//    public ModelAndView show(@RequestParam(defaultValue = "0") int page) {
-//        ModelAndView modelAndView = new ModelAndView("index");
-//        modelAndView.addObject("blogs", blogService.getAll(PageRequest.of(page,3, Sort.by(Sort.Direction.DESC,"date"))));
-//        return modelAndView;
-//    }
-
+    @GetMapping("/like/{id}")
+    public ModelAndView like(Likes like, @PathVariable("id") int id) {
+        Optional<Blog> optional = blogService.findById(id);
+        like.setBlog(optional.get());
+        likeService.save(like);
+        return new ModelAndView("redirect:/blogs?id="+id);
+    }
 }
